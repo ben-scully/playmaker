@@ -1,27 +1,8 @@
-header {
-  background-color: blue;
+#container {
+  display: flex;
+  justify-content: center;
 }
 
-nav {
-  background-color: green;
-}
-
-.field {
-  background-color: green;
-  width: 100%;
-  height: 400px;
-}
-
-.icons {
-  background-color: lightgrey;
-  height: auto;
-}
-.icons > img {
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-footer {
-  background-color: yellow;
+canvas {
+  background: yellow;
 }
