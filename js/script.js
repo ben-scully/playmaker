@@ -3,7 +3,6 @@ var placedIcons = []
 var selectedIcon = {}
 
 
-
 function setupIcons () {
     paletteIcons.push( createX(100, 50) )
     paletteIcons.push( createO(300, 50) )
@@ -65,7 +64,6 @@ function reRender () {
     var oneIcon = placedIcons[icon]
 
     if (oneIcon.symbol === "A") {
-      console.log("Should this be here?: ", oneIcon)
       paintOneArrow(ctx, oneIcon)
     }
 
@@ -101,12 +99,9 @@ function hasClickedExisting (e) {
   for (var icon in placedIcons) {
     var oneIcon = placedIcons[icon]
 
-    if (e.layerX > oneIcon.x && e.layerX < (oneIcon.x + oneIcon.size)) {
-      if (e.layerY > oneIcon.y && e.layerY < (oneIcon.y + oneIcon.size)) {
-
-        index = icon
-        break
-      }
+    if ( inBounds(e, oneIcon) ) {
+      index = icon
+      break
     }
   }
 
@@ -130,6 +125,10 @@ function placeNewIcon (e) {
       symbol: selectedIcon.symbol
     }
 
+    if (selectedIcon.symbol === "A") {
+      oneIcon = createArrow( e.layerX, e.layerY )
+    }
+
     placedIcons.push(oneIcon)
   }
   else {
@@ -139,9 +138,9 @@ function placeNewIcon (e) {
 
 
 
-function paintOneIcon (ctx, oneIcon) {
+function paintOneIcon (ctx, oneIcon, color ) {
   // "Paint" the square
-  ctx.fillStyle = "#00ff00"
+  ctx.fillStyle = color || "#00ff00"
   ctx.fillRect( oneIcon.x, oneIcon.y, oneIcon.size, oneIcon.size )
   // Add the symbol X's, O's, A's
   ctx.fillStyle = 'blue'
@@ -150,16 +149,22 @@ function paintOneIcon (ctx, oneIcon) {
 }
 
 
-function paintOneArrow (ctx, oneIcon) {
-  console.log("Paint ARROW called: ", oneIcon)
+function paintOneArrow (ctx, oneIcon, color) {
   ctx.beginPath()
-  ctx.moveTo(oneIcon.x, oneIcon.y)
-  ctx.lineTo(oneIcon.x + 5, oneIcon.y - 20)
+  ctx.moveTo(oneIcon.start.x, oneIcon.start.y)
+  ctx.lineTo(oneIcon.end.x, oneIcon.end.y)
   ctx.closePath()
+  ctx.strokeStyle = color || "#000000"
   ctx.stroke()
+
+  paintOneIcon(ctx, oneIcon.startHandle, color)
+  paintOneIcon(ctx, oneIcon.endHandle, color)
 }
 
 
+var dragging = false
+var justDragged = false
+var dragObj
 
 $(init)
 
@@ -167,11 +172,76 @@ function init () {
   setupIcons()
   reRender()
 
+  document.getElementById("myCanvas").addEventListener("mousedown", function (e) {
+    console.log("mousedown")
+    dragging = true
+
+    for (var i in placedIcons) {
+      if ( placedIcons[i].symbol === "A" ) {
+        var start = placedIcons[i].startHandle
+        var end = placedIcons[i].endHandle
+        if ( inBounds(e, start) ) {
+          dragObj = [placedIcons[i], "start"]
+          console.log("start ! @ !")
+        }
+        if ( inBounds(e, end) ) {
+          dragObj = [placedIcons[i], "end"]
+          console.log("end ! @ !")
+        }
+      }
+    }
+  })
+
+  document.getElementById("myCanvas").addEventListener("mouseup", function (e) {
+    console.log("mouseup")
+    dragging = false
+    if ( dragObj ) {
+      justDragged = true
+    } else {
+      justDragged = false
+    }
+    dragObj = undefined
+  })
+
+  document.getElementById("myCanvas").addEventListener("mousemove", function (e) {
+
+    if (dragging) {
+      console.log("draggin :)")
+
+      if (dragObj[1] === "start") {
+        dragObj[0].start.x = e.layerX
+        dragObj[0].start.y = e.layerY
+        dragObj[0].startHandle.x = e.layerX
+        dragObj[0].startHandle.y = e.layerY
+      }
+      else {
+        dragObj[0].end.x = e.layerX
+        dragObj[0].end.y = e.layerY
+        dragObj[0].endHandle.x = e.layerX
+        dragObj[0].endHandle.y = e.layerY
+      }
+
+      reRender()
+    }
+    for (var i in placedIcons) {
+      if ( placedIcons[i].symbol === "A" ) {
+        var start = placedIcons[i].startHandle
+        var end = placedIcons[i].endHandle
+        if ( inBounds(e, start) || inBounds(e, end) ) {
+          var ctx = this.getContext('2d')
+
+          paintOneArrow(ctx, placedIcons[i], "red")
+        }
+      }
+    }
+  })
+
   document.getElementById("myCanvas").addEventListener("click", function (e) {
 
     if ( !hasClickedPalette(e) )
       if ( !hasClickedExisting(e) )
-        placeNewIcon(e)
+        if ( !justDragged )
+          placeNewIcon(e)
 
     reRender()
 
@@ -180,4 +250,42 @@ function init () {
       console.log(each)
     })
   })
+}
+
+
+function createArrow (xCoord, yCoord) {
+  return {
+    symbol: "A",
+    start: {
+      x: xCoord,
+      y: yCoord
+    },
+    end: {
+      x: xCoord + 10,
+      y: yCoord - 10
+    },
+    startHandle: {
+      x: xCoord,
+      y: yCoord,
+      size: 5,
+      symbol: ""
+    },
+    endHandle: {
+      x: xCoord + 10,
+      y: yCoord - 10,
+      size: 5,
+      symbol: ""
+    }
+  }
+}
+
+
+
+function inBounds (e, rect) {
+  if (e.layerX > rect.x && e.layerX < (rect.x + rect.size)) {
+    if (e.layerY > rect.y && e.layerY < (rect.y + rect.size)) {
+      return true
+    }
+  }
+  return false
 }
