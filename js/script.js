@@ -1,291 +1,217 @@
-var paletteIcons = []
-var placedIcons = []
-var selectedIcon = {}
-
-
-function setupIcons () {
-    paletteIcons.push( createX(100, 50) )
-    paletteIcons.push( createO(300, 50) )
-    paletteIcons.push( createA(500, 50) )
-
-    selectedIcon = createSelected()
-}
-
-function createX (xCoord, yCoord) {
-  return {
-    x: xCoord,
-    y: yCoord,
-    size: 20,
-    symbol: "X"
-  }
-}
-
-function createO (xCoord, yCoord) {
-  return {
-    x: xCoord,
-    y: yCoord,
-    size: 20,
-    symbol: "O"
-  }
-}
-
-function createA (xCoord, yCoord) {
-  return {
-    x: xCoord,
-    y: yCoord,
-    size: 20,
-    symbol: "A"
-  }
-}
-
-function createSelected () {
-  return {
-    x: 10,
-    y: 10,
-    size: 20,
-    symbol: "-"
-  }
-}
-
-
-
-function reRender () {
-  var canvas = document.getElementById('myCanvas')
-  var ctx = canvas.getContext('2d')
-
-	ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-  for (var icon in paletteIcons) {
-    var oneIcon = paletteIcons[icon]
-    paintOneIcon(ctx, oneIcon)
-  }
-
-  for (var icon in placedIcons) {
-    var oneIcon = placedIcons[icon]
-
-    if (oneIcon.symbol === "A") {
-      paintOneArrow(ctx, oneIcon)
-    }
-
-    paintOneIcon(ctx, oneIcon)
-  }
-
-  paintOneIcon(ctx, selectedIcon)
-}
-
-
-
-function hasClickedPalette (e) {
-
-  for (var icon in paletteIcons) {
-    var oneIcon = paletteIcons[icon]
-
-    if (e.layerX > oneIcon.x && e.layerX < (oneIcon.x + oneIcon.size)) {
-      if (e.layerY > oneIcon.y && e.layerY < (oneIcon.y + oneIcon.size)) {
-
-        selectedIcon.symbol = oneIcon.symbol
-        return true
-      }
-    }
-  }
-  return false
-}
-
-
-
-function hasClickedExisting (e) {
-  var index = -1
-
-  for (var icon in placedIcons) {
-    var oneIcon = placedIcons[icon]
-
-    if ( inBounds(e, oneIcon) ) {
-      index = icon
-      break
-    }
-  }
-
-  if (index !== -1) {
-    placedIcons.splice(index, 1)
-    return true
-  }
-
-  return false
-}
-
-
-
-function placeNewIcon (e) {
-
-  if ( selectedIcon.symbol !== "-" ) {
-    var oneIcon = {
-      x: e.layerX,
-      y: e.layerY,
-      size: 20,
-      symbol: selectedIcon.symbol
-    }
-
-    if (selectedIcon.symbol === "A") {
-      oneIcon = createArrow( e.layerX, e.layerY )
-    }
-
-    placedIcons.push(oneIcon)
-  }
-  else {
-    console.log("No icon held.")
-  }
-}
-
-
-
-function paintOneIcon (ctx, oneIcon, color ) {
-  // "Paint" the square
-  ctx.fillStyle = color || "#00ff00"
-  ctx.fillRect( oneIcon.x, oneIcon.y, oneIcon.size, oneIcon.size )
-  // Add the symbol X's, O's, A's
-  ctx.fillStyle = 'blue'
-  ctx.font = '12pt Calibri'
-  ctx.fillText( oneIcon.symbol, oneIcon.x, oneIcon.y + oneIcon.size )
-}
-
-
-function paintOneArrow (ctx, oneIcon, color) {
-  ctx.beginPath()
-  ctx.moveTo(oneIcon.start.x, oneIcon.start.y)
-  ctx.lineTo(oneIcon.end.x, oneIcon.end.y)
-  ctx.closePath()
-  ctx.strokeStyle = color || "#000000"
-  ctx.stroke()
-
-  paintOneIcon(ctx, oneIcon.startHandle, color)
-  paintOneIcon(ctx, oneIcon.endHandle, color)
-}
-
-
-var dragging = false
-var justDragged = false
-var dragObj
-
 $(init)
 
 function init () {
-  setupIcons()
-  reRender()
 
-  document.getElementById("myCanvas").addEventListener("mousedown", function (e) {
-    console.log("mousedown")
-    dragging = true
 
-    for (var i in placedIcons) {
-      if ( placedIcons[i].symbol === "A" ) {
-        var start = placedIcons[i].startHandle
-        var end = placedIcons[i].endHandle
-        if ( inBounds(e, start) ) {
-          dragObj = [placedIcons[i], "start"]
-          console.log("start ! @ !")
-        }
-        if ( inBounds(e, end) ) {
-          dragObj = [placedIcons[i], "end"]
-          console.log("end ! @ !")
-        }
-      }
-    }
+  // Create stage from Canvas & set Ticker to refresh Canvas
+  var stage = new createjs.Stage("myCanvas")
+  createjs.Ticker.addEventListener("tick", function (e) {
+    stage.update()
   })
 
-  document.getElementById("myCanvas").addEventListener("mouseup", function (e) {
-    console.log("mouseup")
-    dragging = false
-    if ( dragObj ) {
-      justDragged = true
-    } else {
-      justDragged = false
-    }
-    dragObj = undefined
-  })
 
-  document.getElementById("myCanvas").addEventListener("mousemove", function (e) {
 
-    if (dragging) {
-      console.log("draggin :)")
+  // Add the initial 'elements to the Canvas'
+  var palette = createPalette()
+  stage.addChild(palette)
 
-      if (dragObj[1] === "start") {
-        dragObj[0].start.x = e.layerX
-        dragObj[0].start.y = e.layerY
-        dragObj[0].startHandle.x = e.layerX
-        dragObj[0].startHandle.y = e.layerY
-      }
-      else {
-        dragObj[0].end.x = e.layerX
-        dragObj[0].end.y = e.layerY
-        dragObj[0].endHandle.x = e.layerX
-        dragObj[0].endHandle.y = e.layerY
-      }
+  var circle = createCircle()
+  stage.addChild(circle)
 
-      reRender()
-    }
-    for (var i in placedIcons) {
-      if ( placedIcons[i].symbol === "A" ) {
-        var start = placedIcons[i].startHandle
-        var end = placedIcons[i].endHandle
-        if ( inBounds(e, start) || inBounds(e, end) ) {
-          var ctx = this.getContext('2d')
+  var cross = createCross()
+  stage.addChild(cross)
 
-          paintOneArrow(ctx, placedIcons[i], "red")
+  var arrow = createArrow(100, 100)
+  var arrowStart = createHandle(100, 100)
+  var arrowEnd = createHandle(100+50, 100+200)
+  stage.addChild(arrow)
+  stage.addChild(arrowStart)
+  stage.addChild(arrowEnd)
+
+
+
+
+  // listeners create functionality:
+  // click on a Circle in the palette
+  // it creates a clone of the Circle
+  // then the clone Circle follows your mouse until you click
+  // if your click is on the 'field' (the yellow bit): put it down on the 'field'
+  // if your click is on the 'palette': destroy the cloned Circle
+
+  // ALSO; add a listener to the cloned Circle so it is click & draggable
+  // after it has been dropped on the 'field'
+  circle.addEventListener("click", function (e) {
+    var circle2 = createCircle("Green")
+    stage.addChild(circle2)
+
+    var firstClick = false
+    circle2.addEventListener("click", function (e) {
+      firstClick = !firstClick
+      circle2.addEventListener("mousedown", function (e) {
+        if (firstClick) {
+          stage.addEventListener("stagemousemove", followMouse)
+        } else {
+          if (palette.hitTest(stage.mouseX, stage.mouseY)) {
+            stage.removeChild(circle2)
+          }
+          stage.removeEventListener("stagemousemove", followMouse)
         }
-      }
-    }
-  })
-
-  document.getElementById("myCanvas").addEventListener("click", function (e) {
-
-    if ( !hasClickedPalette(e) )
-      if ( !hasClickedExisting(e) )
-        if ( !justDragged )
-          placeNewIcon(e)
-
-    reRender()
-
-    console.log( "Array of PlaceIcons: ")
-    placedIcons.map( function (each) {
-      console.log(each)
+      })
     })
+
+    stage.addEventListener("stagemousemove", followMouse)
+    stage.addEventListener("stagemousedown", wrongPositionDestroy)
+
+    function followMouse (e) {
+      circle2.x = e.stageX - 100
+      circle2.y = e.stageY - 50
+    }
+
+    function wrongPositionDestroy (e) {
+      if (palette.hitTest(stage.mouseX, stage.mouseY)) {
+        stage.removeChild(circle2)
+      }
+      stage.removeEventListener("stagemousemove", followMouse)
+      stage.removeEventListener("stagemousedown", wrongPositionDestroy)
+    }
+  })
+
+  var bool = false
+  arrowEnd.addEventListener("click", function (e) {
+    console.log("drunk")
+    bool = !bool
+    if (bool) {
+      stage.addEventListener("stagemousemove", followMouse)
+      stage.addEventListener("stagemousedown", stopDragging)
+
+      console.log("Arrow: ", arrow)
+
+      function followMouse (e) {
+        arrow.graphics.clear()
+        arrow.graphics.setStrokeStyle(5).beginStroke('Red')
+        arrow.graphics.moveTo(100, 100).lineTo(e.stageX, e.stageY)
+        arrow.graphics.endStroke()
+
+        arrowEnd.graphics.clear()
+        arrowEnd.graphics.beginFill("Purple").drawRect(e.stageX, e.stageY, 30, 30)
+      }
+
+      function stopDragging (e) {
+        console.log("picnic")
+        stage.removeEventListener("stagemousemove", followMouse)
+      }
+    }
+  })
+
+  var bool = false
+  arrowStart.addEventListener("click", function (e) {
+    console.log("drunk")
+    bool = !bool
+    if (bool) {
+      stage.addEventListener("stagemousemove", followMouse)
+      stage.addEventListener("stagemousedown", stopDragging)
+
+      function followMouse (e) {
+        arrow.graphics.clear()
+        arrow.graphics.setStrokeStyle(5).beginStroke('Red')
+        arrow.graphics.moveTo(100, 100).lineTo(e.stageX, e.stageY)
+        arrow.graphics.endStroke()
+
+        arrowEnd.graphics.clear()
+        arrowEnd.graphics.beginFill("Purple").drawRect(e.stageX, e.stageY, 30, 30)
+      }
+
+      function stopDragging (e) {
+        console.log("picnic")
+        stage.removeEventListener("stagemousemove", followMouse)
+      }
+    }
   })
 }
 
 
-function createArrow (xCoord, yCoord) {
-  return {
-    symbol: "A",
-    start: {
-      x: xCoord,
-      y: yCoord
-    },
-    end: {
-      x: xCoord + 10,
-      y: yCoord - 10
-    },
-    startHandle: {
-      x: xCoord,
-      y: yCoord,
-      size: 5,
-      symbol: ""
-    },
-    endHandle: {
-      x: xCoord + 10,
-      y: yCoord - 10,
-      size: 5,
-      symbol: ""
-    }
-  }
+
+function createPalette () {
+  var palette = new createjs.Shape()
+  palette.graphics.beginFill("Blue")
+  palette.graphics.drawRect(0, 0, 600, 100)
+
+  return palette
+}
+
+function createCircle (color) {
+  var circle = new createjs.Shape()
+  circle.graphics.beginFill("DeepSkyBlue")
+
+  if (color !== undefined)
+    circle.graphics.beginFill(color)
+
+  circle.graphics.drawCircle(100, 50, 20)
+  return circle
+}
+
+function createCross (color) {
+  var cross = new createjs.Shape()
+  cross.graphics.beginFill("Red")
+
+  if (color !== undefined)
+    cross.graphics.beginFill(color)
+
+  cross.graphics.drawRect(250, 50, 30, 30)
+  return cross
+}
+
+function createArrow (x, y) {
+  var arrow = new createjs.Shape()
+  arrow.graphics.setStrokeStyle(5).beginStroke('Red')
+  arrow.graphics.moveTo(x, y).lineTo(x+50, y+200)
+  arrow.graphics.endStroke()
+
+  return arrow
+}
+
+function createHandle (x, y) {
+  var arrowHandle = new createjs.Shape()
+  arrowHandle.graphics.beginFill("Purple")
+  arrowHandle.graphics.drawRect(x, y, 30, 30)
+
+  return arrowHandle
 }
 
 
 
-function inBounds (e, rect) {
-  if (e.layerX > rect.x && e.layerX < (rect.x + rect.size)) {
-    if (e.layerY > rect.y && e.layerY < (rect.y + rect.size)) {
-      return true
-    }
-  }
-  return false
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// cross.addEventListener("click", function (e) {
+//   var cross2 = createCross("Green")
+//   stage.addChild(cross2)
+//
+//   stage.addEventListener("stagemousemove", followMouse)
+//   stage.addEventListener("stagemousedown", wrongPositionDestroy)
+//
+//   function followMouse (e) {
+//     cross2.x = e.stageX - 250-15
+//     cross2.y = e.stageY - 50-15
+//   }
+//
+//   function wrongPositionDestroy (e) {
+//     if (palette.hitTest(stage.mouseX, stage.mouseY)) {
+//       stage.removeChild(cross2)
+//     }
+//     stage.removeEventListener("stagemousemove", followMouse)
+//     stage.removeEventListener("stagemousedown", wrongPositionDestroy)
+//   }
+// })
